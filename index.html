@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./output.css" />
+    <script src="//unpkg.com/alpinejs" defer></script>
+    <title>Sanitize measurements</title>
+  </head>
+  <body>
+    <div class="container mx-auto max-w-md">
+      <h1 class="text-2xl font-bold text-gray-800 mt-8 mb-2">
+        Sanitize measurements
+      </h1>
+      <p class="text-lg">
+        Upload a measurement file to replace all fractions with decimals. Ideal
+        formats are csv or tsv, but any text document should work. Please only
+        upload the measurement columns, or risk replacing unwanted data.
+      </p>
+      <form
+        @submit.prevent
+        x-data="{ file: null, options: ['quotes', 'range'] }"
+        class="space-y-8 mt-8"
+      >
+        <label
+          class="border-2 border-gray-200 p-3 w-full block rounded cursor-pointer my-2"
+          for="customFile"
+        >
+          <input
+            type="file"
+            class="sr-only"
+            id="customFile"
+            x-on:change="file = Object.values($event.target.files)[0]"
+          />
+          <span x-text="file ? file.name : 'Choose single file...'"></span>
+        </label>
+        <div x-show="file" x-transition class="space-y-2">
+          <label class="block">
+            <input type="checkbox" value="quotes" x-model="options" />
+            <span>Remove double quotes</span>
+          </label>
+          <label class="block">
+            <input type="checkbox" value="range" x-model="options" />
+            <span>Replace range with lowest value</span>
+          </label>
+        </div>
+        <div x-show="file" class="flex space-x-4">
+          <button
+            class="px-6 py-2 rounded bg-blue-200"
+            type="submit"
+            x-on:click="process(file, options)"
+          >
+            Process File
+          </button>
+          <button
+            class="px-6 py-2 rounded bg-gray-200"
+            type="button"
+            x-on:click="file = null"
+          >
+            Clear
+          </button>
+        </div>
+      </form>
+      <div class="fixed inset-x-0 bottom-0 text-center py-4 text-sm text-gray-500">Created in 2022 by Jacob Belanger</div>
+    </div>
+    <script>
+      const fractionMap = {
+        "½": ".5",
+        "⅓": ".33",
+        "¼": ".25",
+        "⅕": ".2",
+        "⅙": ".16",
+        "⅛": ".125",
+        "⅔": ".66",
+        "⅖": ".4",
+        "⅜": ".375",
+        "¾": ".75",
+        "⅗": ".6",
+        "⅘": ".8",
+        "⅚": ".83",
+        "⅝": ".625",
+        "⅞": ".875",
+        "⅒": ".1",
+      };
+
+      const getOption = (o, v) => o.indexOf(v) !== -1;
+
+      const sanitize = (text, opts) => {
+        // Replace text fractions
+        Object.entries(fractionMap).forEach(([key, val]) => {
+          text = text.replaceAll(key, val);
+        });
+
+        // prefix lone decimals with 0
+        text = text.replace(/(?<=\D)(?=\.\d)/g, "0");
+
+        // remove double quotes
+        getOption(opts, "quotes") && (text = text.replace(/["”]/g, ""));
+
+        // remove ranges, replace with lowest number
+        getOption(opts, "range") &&
+          (text = text.replace(/(\d+(\.\d+)?) ?- ?\d+(\.\d+)?/g, "$1"));
+
+        return text;
+      };
+
+      function download(filename, text) {
+        var element = document.createElement("a");
+        element.setAttribute(
+          "href",
+          "data:text/plain;charset=utf-8," + encodeURIComponent(text)
+        );
+        element.setAttribute("download", filename);
+
+        element.style.display = "none";
+        document.body.appendChild(element);
+
+        element.click();
+
+        document.body.removeChild(element);
+      }
+
+      function process(file, opts) {
+        const name = file.name;
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+          const cleanFile = sanitize(e.target.result, opts);
+          // Initiate download
+          download(`clean-${name}`, cleanFile);
+        };
+
+        reader.readAsText(file);
+      }
+    </script>
+  </body>
+</html>
